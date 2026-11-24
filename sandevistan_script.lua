@@ -8,9 +8,9 @@ local cam=workspace.CurrentCamera
 local act,rep=false,false
 local pts,imgs={},{}
 local ghost,mConn,tThr=nil,nil,nil
-local mult,inv,dashSpd,defFov=3.5,0.16,6,70
+local mult,inv,dashSpd,defFov=5.0,0.14,14,70
 local COLS={Color3.fromRGB(0,255,170),Color3.fromRGB(0,200,255),Color3.fromRGB(255,50,100),Color3.fromRGB(180,255,0)}
-local cIdx,jX,jY=1,0,0
+local cIdx=1
 local target=plr:WaitForChild("PlayerGui")
 if target:FindFirstChild("SndUI") then target.SndUI:Destroy() end
 local gui=Instance.new("ScreenGui",target)
@@ -19,45 +19,51 @@ local vig=Instance.new("ImageLabel",gui)
 vig.Size=UDim2.new(1,0,1,0) vig.BackgroundTransparency=1 vig.Image="rbxassetid://4576475446" vig.ImageColor3=Color3.fromRGB(0,20,15) vig.ImageTransparency=1 vig.Active=false vig.ZIndex=1
 local cc=L:FindFirstChild("SndCC") or Instance.new("ColorCorrectionEffect",L)
 cc.Name="SndCC"
-local function btn(txt,sz,pos,col)
-	local b=Instance.new("TextButton",gui)
+local menuBox=Instance.new("Frame",gui)
+menuBox.Size=UDim2.new(0,210,0,154) menuBox.Position=UDim2.new(0.75,-105,0.28,-36) menuBox.BackgroundTransparency=1 menuBox.ZIndex=9
+local wasDragged=false
+local function hookMenuDrag(el)
+	local dIn,dStart,sPos=nil,nil,nil
+	el.InputBegan:Connect(function(i)
+		if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then
+			dIn,dStart,sPos,wasDragged=i,i.Position,menuBox.Position,false
+		end
+	end)
+	U.InputChanged:Connect(function(i)
+		if dIn and (i==dIn or i.UserInputType==Enum.UserInputType.MouseMovement) then
+			local delta=i.Position-dStart
+			if delta.Magnitude>10 then wasDragged=true end
+			if wasDragged then
+				menuBox.Position=UDim2.new(sPos.X.Scale,sPos.X.Offset+delta.X,sPos.Y.Scale,sPos.Y.Offset+delta.Y)
+			end
+		end
+	end)
+	U.InputEnded:Connect(function(i) if i==dIn then dIn=nil task.defer(function() wasDragged=false end) end end)
+end
+local function btn(par,txt,sz,pos,col)
+	local b=Instance.new("TextButton",par)
 	b.Size,b.Position,b.Text=sz,pos,txt
 	b.BackgroundColor3=Color3.fromRGB(15,20,25) b.BorderColor3=col or Color3.fromRGB(0,255,170) b.BorderSizePixel=2
 	b.TextColor3=b.BorderColor3 b.Font=Enum.Font.GothamBold b.TextScaled=true b.ZIndex=10
 	Instance.new("UICorner",b).CornerRadius=UDim.new(0,6)
+	hookMenuDrag(b)
 	return b
 end
-local hBtn=btn("СКРЫТЬ",UDim2.new(0,80,0,30),UDim2.new(0.75,-105,0.28,-36),Color3.fromRGB(255,200,0))
-local tBtn=btn("САНДЕВИСТАН: ВЫКЛ",UDim2.new(0,210,0,42),UDim2.new(0.75,-105,0.28,0))
-local bM=btn("БЕГ: СРЕД",UDim2.new(0,66,0,32),UDim2.new(0.75,-105,0.28,48))
-local bF=btn("БЕГ: БЫСТР",UDim2.new(0,66,0,32),UDim2.new(0.75,-33,0.28,48))
-local bN=btn("БЕГ: ОБЫЧ",UDim2.new(0,66,0,32),UDim2.new(0.75,39,0.28,48))
-local dS=btn("РЫВ: МЕДЛ",UDim2.new(0,66,0,32),UDim2.new(0.75,-105,0.28,86),Color3.fromRGB(0,200,255))
-local dM=btn("РЫВ: СРЕД",UDim2.new(0,66,0,32),UDim2.new(0.75,-33,0.28,86),Color3.fromRGB(0,200,255))
-local dF=btn("РЫВ: МОЛН",UDim2.new(0,66,0,32),UDim2.new(0.75,39,0.28,86),Color3.fromRGB(0,200,255))
-local jB=Instance.new("Frame",gui)
-jB.Size=UDim2.new(0,110,0,110) jB.Position=UDim2.new(0.75,-225,0.28,4) jB.BackgroundColor3=Color3.fromRGB(15,20,25) jB.BackgroundTransparency=0.25 jB.Active=true jB.ZIndex=10
-Instance.new("UICorner",jB).CornerRadius=UDim.new(1,0)
-local jStroke=Instance.new("UIStroke",jB) jStroke.Color=Color3.fromRGB(255,200,0) jStroke.Thickness=2
-local jS=Instance.new("Frame",jB)
-jS.Size=UDim2.new(0,44,0,44) jS.Position=UDim2.new(0.5,-22,0.5,-22) jS.BackgroundColor3=Color3.fromRGB(255,200,0) jS.ZIndex=11
-Instance.new("UICorner",jS).CornerRadius=UDim.new(1,0)
-local vis,all,dragInput=true,{tBtn,bM,bF,bN,dS,dM,dF,jB},nil
-hBtn.MouseButton1Click:Connect(function() vis=not vis hBtn.Text=vis and "СКРЫТЬ" or "МЕНЮ" for _,v in ipairs(all) do v.Visible=vis end end)
-local function mv(p)
-	local dx,dy=p.X-(jB.AbsolutePosition.X+55),p.Y-(jB.AbsolutePosition.Y+55)
-	local d=math.sqrt(dx*dx+dy*dy)
-	if d>40 then dx,dy=dx/d*40,dy/d*40 end
-	jS.Position=UDim2.new(0.5,dx-22,0.5,dy-22) jX,jY=dx/40,dy/40
-end
-jB.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then dragInput=i mv(i.Position) end end)
-U.InputChanged:Connect(function(i) if dragInput and (i==dragInput or i.UserInputType==Enum.UserInputType.MouseMovement) then mv(i.Position) end end)
-U.InputEnded:Connect(function(i) if i==dragInput then dragInput=nil jX,jY=0,0 jS.Position=UDim2.new(0.5,-22,0.5,-22) end end)
-local function setR(m,i,a) mult,inv=m,i for _,b in ipairs({bM,bF,bN}) do b.BackgroundColor3=(b==a) and Color3.fromRGB(0,110,80) or Color3.fromRGB(15,20,25) b.TextColor3=(b==a) and Color3.new(1,1,1) or Color3.fromRGB(0,255,170) end end
-local function setD(s,a) dashSpd=s for _,b in ipairs({dS,dM,dF}) do b.BackgroundColor3=(b==a) and Color3.fromRGB(0,95,130) or Color3.fromRGB(15,20,25) b.TextColor3=(b==a) and Color3.new(1,1,1) or Color3.fromRGB(0,200,255) end end
-bM.MouseButton1Click:Connect(function() setR(3.5,0.16,bM) end) bF.MouseButton1Click:Connect(function() setR(6.5,0.11,bF) end) bN.MouseButton1Click:Connect(function() setR(1.5,0.22,bN) end)
-dS.MouseButton1Click:Connect(function() setD(2.5,dS) end) dM.MouseButton1Click:Connect(function() setD(6,dM) end) dF.MouseButton1Click:Connect(function() setD(14,dF) end)
-setR(3.5,0.16,bM) setD(6,dM)
+local hBtn=btn(menuBox,"СКРЫТЬ",UDim2.new(0,80,0,30),UDim2.new(0,0,0,0),Color3.fromRGB(255,200,0))
+local tBtn=btn(menuBox,"САНДЕВИСТАН: ВЫКЛ",UDim2.new(0,210,0,42),UDim2.new(0,0,0,36))
+local bM=btn(menuBox,"БЕГ: СРЕД",UDim2.new(0,66,0,32),UDim2.new(0,0,0,84))
+local bF=btn(menuBox,"БЕГ: БЫСТР",UDim2.new(0,66,0,32),UDim2.new(0,72,0,84))
+local bN=btn(menuBox,"БЕГ: ОБЫЧ",UDim2.new(0,66,0,32),UDim2.new(0,144,0,84))
+local dS=btn(menuBox,"РЫВ: МЕДЛ",UDim2.new(0,66,0,32),UDim2.new(0,0,0,122),Color3.fromRGB(0,200,255))
+local dM=btn(menuBox,"РЫВ: СРЕД",UDim2.new(0,66,0,32),UDim2.new(0,72,0,122),Color3.fromRGB(0,200,255))
+local dF=btn(menuBox,"РЫВ: МОЛН",UDim2.new(0,66,0,32),UDim2.new(0,144,0,122),Color3.fromRGB(0,200,255))
+local vis,all=true,{tBtn,bM,bF,bN,dS,dM,dF}
+hBtn.MouseButton1Click:Connect(function() if wasDragged then return end vis=not vis hBtn.Text=vis and "СКРЫТЬ" or "МЕНЮ" for _,v in ipairs(all) do v.Visible=vis end end)
+local function setR(m,i,a) if wasDragged then return end mult,inv=m,i for _,b in ipairs({bM,bF,bN}) do b.BackgroundColor3=(b==a) and Color3.fromRGB(0,110,80) or Color3.fromRGB(15,20,25) b.TextColor3=(b==a) and Color3.new(1,1,1) or Color3.fromRGB(0,255,170) end end
+local function setD(s,a) if wasDragged then return end dashSpd=s for _,b in ipairs({dS,dM,dF}) do b.BackgroundColor3=(b==a) and Color3.fromRGB(0,95,130) or Color3.fromRGB(15,20,25) b.TextColor3=(b==a) and Color3.new(1,1,1) or Color3.fromRGB(0,200,255) end end
+bM.MouseButton1Click:Connect(function() setR(5.0,0.14,bM) end) bF.MouseButton1Click:Connect(function() setR(9.0,0.09,bF) end) bN.MouseButton1Click:Connect(function() setR(2.4,0.19,bN) end)
+dS.MouseButton1Click:Connect(function() setD(6,dS) end) dM.MouseButton1Click:Connect(function() setD(14,dM) end) dF.MouseButton1Click:Connect(function() setD(28,dF) end)
+setR(5.0,0.14,bM) setD(14,dM)
 local function atm(on)
 	local ti=TweenInfo.new(0.3)
 	if on then defFov=cam.FieldOfView T:Create(cam,ti,{FieldOfView=95}):Play() T:Create(vig,ti,{ImageTransparency=0.25}):Play() T:Create(cc,ti,{TintColor=Color3.fromRGB(190,255,235),Saturation=0.25,Contrast=0.15}):Play()
@@ -90,6 +96,7 @@ local function mkGhost(ch)
 	return cl
 end
 local function start()
+	if wasDragged then return end
 	local ch=plr.Character
 	local hrp=ch and ch:FindFirstChild("HumanoidRootPart")
 	local hum=ch and ch:FindFirstChildOfClass("Humanoid")
@@ -102,6 +109,7 @@ local function start()
 	local gHum=ghost and ghost:FindFirstChildOfClass("Humanoid")
 	local gHrp=ghost and ghost:FindFirstChild("HumanoidRootPart")
 	if not ghost or not gHum or not gHrp then act=false return end
+	hrp.Anchored=true
 	cam.CameraSubject=gHum tBtn.Text="САНДЕВИСТАН: ВКЛ" tBtn.BackgroundColor3=Color3.fromRGB(0,110,80) tBtn.TextColor3=Color3.new(1,1,1) atm(true)
 	if mConn then mConn:Disconnect() end
 	mConn=R.RenderStepped:Connect(function()
@@ -112,12 +120,6 @@ local function start()
 			if ud.Magnitude>0.01 then ud=ud.Unit gHum.WalkSpeed=16*mult gHum:Move(ud,false) gHrp.CFrame=CFrame.lookAt(gHrp.Position,gHrp.Position+ud) end
 		else gHum:Move(Vector3.zero,false) end
 		if hum.Jump then gHum.Jump=true end
-		if math.abs(jX)>0.05 or math.abs(jY)>0.05 then
-			local lk,rt=Vector3.new(cam.CFrame.LookVector.X,0,cam.CFrame.LookVector.Z),Vector3.new(cam.CFrame.RightVector.X,0,cam.CFrame.RightVector.Z)
-			lk=(lk.Magnitude>0.01) and lk.Unit or Vector3.new(0,0,-1) rt=(rt.Magnitude>0.01) and rt.Unit or Vector3.new(1,0,0)
-			local rd=(rt*jX-lk*jY)
-			if rd.Magnitude>0.01 then hum:Move(rd.Unit,false) end
-		else hum:Move(Vector3.zero,false) end
 	end)
 	if tThr then task.cancel(tThr) end
 	tThr=task.spawn(function()
@@ -175,12 +177,12 @@ local function stop()
 			end
 		end
 	end
-	if hrp and hrp.Parent then hrp.AssemblyLinearVelocity=Vector3.zero hrp.Anchored=false end
+	if hrp and hrp.Parent then hrp.AssemblyLinearVelocity,hrp.Anchored=Vector3.zero,false end
 	for _,d in ipairs(imgs) do if not d.gone then d.gone=true fade(d.m) end end
 	table.clear(imgs) table.clear(pts) atm(false)
 	tBtn.Text="САНДЕВИСТАН: ВЫКЛ" tBtn.BackgroundColor3=Color3.fromRGB(15,20,25) tBtn.TextColor3=Color3.fromRGB(0,255,170) rep=false
 end
-tBtn.MouseButton1Click:Connect(function() if not rep then if act then stop() else start() end end end)
+tBtn.MouseButton1Click:Connect(function() if not wasDragged and not rep then if act then stop() else start() end end end)
 U.InputBegan:Connect(function(i,gp) if not gp and i.KeyCode==Enum.KeyCode.E and not rep then if act then stop() else start() end end end)
 plr.CharacterRemoving:Connect(function()
 	act,rep=false,false
@@ -189,5 +191,8 @@ plr.CharacterRemoving:Connect(function()
 	if ghost then ghost:Destroy() ghost=nil end
 	for _,d in ipairs(imgs) do if d.m then d.m:Destroy() end end
 	table.clear(imgs) table.clear(pts) atm(false)
+	local ch=plr.Character
+	local hrp=ch and ch:FindFirstChild("HumanoidRootPart")
+	if hrp then hrp.Anchored=false end
 	tBtn.Text="САНДЕВИСТАН: ВЫКЛ" tBtn.BackgroundColor3=Color3.fromRGB(15,20,25) tBtn.TextColor3=Color3.fromRGB(0,255,170)
 end)
