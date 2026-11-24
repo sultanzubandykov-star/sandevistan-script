@@ -2,53 +2,32 @@ local P=game:GetService("Players")
 local R=game:GetService("RunService")
 local T=game:GetService("TweenService")
 local L=game:GetService("Lighting")
+local U=game:GetService("UserInputService")
 local plr=P.LocalPlayer
 local cam=workspace.CurrentCamera
-
 local act,rep=false,false
 local pts,imgs={},{}
 local ghost,mConn,tThr=nil,nil,nil
 local mult,inv,dashSpd,defFov=3.5,0.16,6,70
 local COLS={Color3.fromRGB(0,255,170),Color3.fromRGB(0,200,255),Color3.fromRGB(255,50,100),Color3.fromRGB(180,255,0)}
-local cIdx=1
-
-local pg=plr:WaitForChild("PlayerGui")
-if pg:FindFirstChild("SndUI") then pg.SndUI:Destroy() end
-local gui=Instance.new("ScreenGui",pg)
-gui.Name="SndUI"
-gui.ResetOnSpawn=false
-gui.IgnoreGuiInset=true
-
+local cIdx,jX,jY=1,0,0
+local target=plr:WaitForChild("PlayerGui")
+if target:FindFirstChild("SndUI") then target.SndUI:Destroy() end
+local gui=Instance.new("ScreenGui",target)
+gui.Name="SndUI" gui.ResetOnSpawn=false gui.IgnoreGuiInset=true gui.DisplayOrder=999999
 local vig=Instance.new("ImageLabel",gui)
-vig.Size=UDim2.new(1,0,1,0)
-vig.BackgroundTransparency=1
-vig.Image="rbxassetid://4576475446"
-vig.ImageColor3=Color3.fromRGB(0,20,15)
-vig.ImageTransparency=1
-vig.Active=false
-
+vig.Size=UDim2.new(1,0,1,0) vig.BackgroundTransparency=1 vig.Image="rbxassetid://4576475446" vig.ImageColor3=Color3.fromRGB(0,20,15) vig.ImageTransparency=1 vig.Active=false vig.ZIndex=1
 local cc=L:FindFirstChild("SndCC") or Instance.new("ColorCorrectionEffect",L)
 cc.Name="SndCC"
-
 local function btn(txt,sz,pos,col)
 	local b=Instance.new("TextButton",gui)
 	b.Size,b.Position,b.Text=sz,pos,txt
-	b.BackgroundColor3=Color3.fromRGB(15,20,25)
-	b.BorderColor3=col or Color3.fromRGB(0,255,170)
-	b.BorderSizePixel=2
-	b.TextColor3=b.BorderColor3
-	b.Font=Enum.Font.GothamBold
-	b.TextScaled=true
-	b.ZIndex=10
+	b.BackgroundColor3=Color3.fromRGB(15,20,25) b.BorderColor3=col or Color3.fromRGB(0,255,170) b.BorderSizePixel=2
+	b.TextColor3=b.BorderColor3 b.Font=Enum.Font.GothamBold b.TextScaled=true b.ZIndex=10
 	Instance.new("UICorner",b).CornerRadius=UDim.new(0,6)
-	local pad=Instance.new("UIPadding",b)
-	pad.PaddingLeft=UDim.new(0,4)
-	pad.PaddingRight=UDim.new(0,4)
-	pad.PaddingTop=UDim.new(0,4)
-	pad.PaddingBottom=UDim.new(0,4)
 	return b
 end
-
+local hBtn=btn("СКРЫТЬ",UDim2.new(0,80,0,30),UDim2.new(0.75,-105,0.28,-36),Color3.fromRGB(255,200,0))
 local tBtn=btn("САНДЕВИСТАН: ВЫКЛ",UDim2.new(0,210,0,42),UDim2.new(0.75,-105,0.28,0))
 local bM=btn("БЕГ: СРЕД",UDim2.new(0,66,0,32),UDim2.new(0.75,-105,0.28,48))
 local bF=btn("БЕГ: БЫСТР",UDim2.new(0,66,0,32),UDim2.new(0.75,-33,0.28,48))
@@ -56,66 +35,47 @@ local bN=btn("БЕГ: ОБЫЧ",UDim2.new(0,66,0,32),UDim2.new(0.75,39,0.28,48))
 local dS=btn("РЫВ: МЕДЛ",UDim2.new(0,66,0,32),UDim2.new(0.75,-105,0.28,86),Color3.fromRGB(0,200,255))
 local dM=btn("РЫВ: СРЕД",UDim2.new(0,66,0,32),UDim2.new(0.75,-33,0.28,86),Color3.fromRGB(0,200,255))
 local dF=btn("РЫВ: МОЛН",UDim2.new(0,66,0,32),UDim2.new(0.75,39,0.28,86),Color3.fromRGB(0,200,255))
-
-local function setR(m,i,a)
-	mult,inv=m,i
-	for _,b in ipairs({bM,bF,bN}) do
-		b.BackgroundColor3=(b==a) and Color3.fromRGB(0,110,80) or Color3.fromRGB(15,20,25)
-		b.TextColor3=(b==a) and Color3.new(1,1,1) or Color3.fromRGB(0,255,170)
-	end
+local jB=Instance.new("Frame",gui)
+jB.Size=UDim2.new(0,110,0,110) jB.Position=UDim2.new(0.75,-225,0.28,4) jB.BackgroundColor3=Color3.fromRGB(15,20,25) jB.BackgroundTransparency=0.25 jB.Active=true jB.ZIndex=10
+Instance.new("UICorner",jB).CornerRadius=UDim.new(1,0)
+local jStroke=Instance.new("UIStroke",jB) jStroke.Color=Color3.fromRGB(255,200,0) jStroke.Thickness=2
+local jS=Instance.new("Frame",jB)
+jS.Size=UDim2.new(0,44,0,44) jS.Position=UDim2.new(0.5,-22,0.5,-22) jS.BackgroundColor3=Color3.fromRGB(255,200,0) jS.ZIndex=11
+Instance.new("UICorner",jS).CornerRadius=UDim.new(1,0)
+local vis,all,dragInput=true,{tBtn,bM,bF,bN,dS,dM,dF,jB},nil
+hBtn.MouseButton1Click:Connect(function() vis=not vis hBtn.Text=vis and "СКРЫТЬ" or "МЕНЮ" for _,v in ipairs(all) do v.Visible=vis end end)
+local function mv(p)
+	local dx,dy=p.X-(jB.AbsolutePosition.X+55),p.Y-(jB.AbsolutePosition.Y+55)
+	local d=math.sqrt(dx*dx+dy*dy)
+	if d>40 then dx,dy=dx/d*40,dy/d*40 end
+	jS.Position=UDim2.new(0.5,dx-22,0.5,dy-22) jX,jY=dx/40,dy/40
 end
-local function setD(s,a)
-	dashSpd=s
-	for _,b in ipairs({dS,dM,dF}) do
-		b.BackgroundColor3=(b==a) and Color3.fromRGB(0,95,130) or Color3.fromRGB(15,20,25)
-		b.TextColor3=(b==a) and Color3.new(1,1,1) or Color3.fromRGB(0,200,255)
-	end
-end
-bM.MouseButton1Click:Connect(function() setR(3.5,0.16,bM) end)
-bF.MouseButton1Click:Connect(function() setR(6.5,0.11,bF) end)
-bN.MouseButton1Click:Connect(function() setR(1.5,0.22,bN) end)
-dS.MouseButton1Click:Connect(function() setD(2.5,dS) end)
-dM.MouseButton1Click:Connect(function() setD(6,dM) end)
-dF.MouseButton1Click:Connect(function() setD(14,dF) end)
+jB.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.Touch or i.UserInputType==Enum.UserInputType.MouseButton1 then dragInput=i mv(i.Position) end end)
+U.InputChanged:Connect(function(i) if dragInput and (i==dragInput or i.UserInputType==Enum.UserInputType.MouseMovement) then mv(i.Position) end end)
+U.InputEnded:Connect(function(i) if i==dragInput then dragInput=nil jX,jY=0,0 jS.Position=UDim2.new(0.5,-22,0.5,-22) end end)
+local function setR(m,i,a) mult,inv=m,i for _,b in ipairs({bM,bF,bN}) do b.BackgroundColor3=(b==a) and Color3.fromRGB(0,110,80) or Color3.fromRGB(15,20,25) b.TextColor3=(b==a) and Color3.new(1,1,1) or Color3.fromRGB(0,255,170) end end
+local function setD(s,a) dashSpd=s for _,b in ipairs({dS,dM,dF}) do b.BackgroundColor3=(b==a) and Color3.fromRGB(0,95,130) or Color3.fromRGB(15,20,25) b.TextColor3=(b==a) and Color3.new(1,1,1) or Color3.fromRGB(0,200,255) end end
+bM.MouseButton1Click:Connect(function() setR(3.5,0.16,bM) end) bF.MouseButton1Click:Connect(function() setR(6.5,0.11,bF) end) bN.MouseButton1Click:Connect(function() setR(1.5,0.22,bN) end)
+dS.MouseButton1Click:Connect(function() setD(2.5,dS) end) dM.MouseButton1Click:Connect(function() setD(6,dM) end) dF.MouseButton1Click:Connect(function() setD(14,dF) end)
 setR(3.5,0.16,bM) setD(6,dM)
-
 local function atm(on)
 	local ti=TweenInfo.new(0.3)
-	if on then
-		defFov=cam.FieldOfView
-		T:Create(cam,ti,{FieldOfView=95}):Play()
-		T:Create(vig,ti,{ImageTransparency=0.25}):Play()
-		T:Create(cc,ti,{TintColor=Color3.fromRGB(190,255,235),Saturation=0.25,Contrast=0.15}):Play()
-	else
-		T:Create(cam,ti,{FieldOfView=defFov}):Play()
-		T:Create(vig,ti,{ImageTransparency=1}):Play()
-		T:Create(cc,ti,{TintColor=Color3.new(1,1,1),Saturation=0,Contrast=0}):Play()
-	end
+	if on then defFov=cam.FieldOfView T:Create(cam,ti,{FieldOfView=95}):Play() T:Create(vig,ti,{ImageTransparency=0.25}):Play() T:Create(cc,ti,{TintColor=Color3.fromRGB(190,255,235),Saturation=0.25,Contrast=0.15}):Play()
+	else T:Create(cam,ti,{FieldOfView=defFov}):Play() T:Create(vig,ti,{ImageTransparency=1}):Play() T:Create(cc,ti,{TintColor=Color3.new(1,1,1),Saturation=0,Contrast=0}):Play() end
 end
-
 local function fade(m)
 	if not m or not m.Parent then return end
-	for _,p in ipairs(m:GetDescendants()) do
-		if p:IsA("BasePart") then T:Create(p,TweenInfo.new(0.18),{Transparency=1}):Play() end
-	end
-	task.delay(0.2,function() if m then m:Destroy() end end)
+	for _,p in ipairs(m:GetDescendants()) do if p:IsA("BasePart") then T:Create(p,TweenInfo.new(0.15),{Transparency=1}):Play() end end
+	task.delay(0.16,function() if m then m:Destroy() end end)
 end
-
 local function mkGhost(ch)
-	ch.Archivable=true
-	for _,v in ipairs(ch:GetDescendants()) do v.Archivable=true end
-	local cl=ch:Clone()
-	ch.Archivable=false
-	if not cl then return nil end
+	ch.Archivable=true for _,v in ipairs(ch:GetDescendants()) do v.Archivable=true end
+	local cl=ch:Clone() ch.Archivable=false if not cl then return nil end
 	for _,v in ipairs(cl:GetDescendants()) do
 		if v:IsA("Script") or v:IsA("LocalScript") or v:IsA("ForceField") then v:Destroy()
 		elseif v:IsA("BasePart") then
-			v.Anchored=false
-			v.CanCollide=(v.Name=="HumanoidRootPart")
-			v.CanTouch,v.CanQuery,v.Massless=false,false,true
-			if v.Name~="HumanoidRootPart" and v.Transparency<0.95 then
-				v.Material,v.Color,v.Transparency=Enum.Material.Neon,Color3.fromRGB(0,255,170),0.3
-			end
+			v.Anchored=false v.CanCollide=(v.Name=="HumanoidRootPart") v.CanTouch,v.CanQuery,v.Massless=false,false,true
+			if v.Name~="HumanoidRootPart" and v.Transparency<0.95 then v.Material,v.Color,v.Transparency=Enum.Material.Neon,Color3.fromRGB(0,255,170),0.3 end
 		end
 	end
 	cl.Parent=workspace
@@ -123,161 +83,111 @@ local function mkGhost(ch)
 	if h then
 		h.AutoRotate=false
 		local an=h:FindFirstChildOfClass("Animator") or Instance.new("Animator",h)
-		local a=Instance.new("Animation")
-		a.AnimationId=(h.RigType==Enum.HumanoidRigType.R15) and "rbxassetid://507767714" or "rbxassetid://180426354"
-		local ok,tr=pcall(function() return an:LoadAnimation(a) end)
-		if ok and tr then
-			tr.Looped=true
-			h.Running:Connect(function(s)
-				if s>0.5 then if not tr.IsPlaying then tr:Play() end tr:AdjustSpeed(math.clamp(s/16,1,2.5))
-				elseif tr.IsPlaying then tr:Stop() end
-			end)
-		end
+		local a=Instance.new("Animation") a.AnimationId=(h.RigType==Enum.HumanoidRigType.R15) and "rbxassetid://507767714" or "rbxassetid://180426354"
+		local okA,tr=pcall(function() return an:LoadAnimation(a) end)
+		if okA and tr then tr.Looped=true h.Running:Connect(function(s) if s>0.5 then if not tr.IsPlaying then tr:Play() end tr:AdjustSpeed(math.clamp(s/16,1,2.5)) elseif tr.IsPlaying then tr:Stop() end end) end
 	end
 	return cl
 end
-
-local function mkSil(src,col,tr)
-	local cfs={}
-	src.Archivable=true
-	for _,v in ipairs(src:GetDescendants()) do
-		v.Archivable=true
-		if v:IsA("BasePart") then cfs[v.Name..tostring(v.Size)]=v.CFrame end
-	end
-	local cl=src:Clone()
-	src.Archivable=false
-	if not cl then return nil end
-	for _,v in ipairs(cl:GetDescendants()) do
-		if v:IsA("BasePart") then
-			if v.Name=="HumanoidRootPart" or v.Transparency>=0.95 then v:Destroy()
-			else
-				local cf=cfs[v.Name..tostring(v.Size)]
-				v.Anchored,v.CanCollide,v.CanTouch,v.CanQuery,v.Massless,v.CastShadow=true,false,false,false,true,false
-				v.Material,v.Color,v.Transparency=Enum.Material.Neon,col,tr
-				if cf then v.CFrame=cf end
-			end
-		elseif v:IsA("JointInstance") or v:IsA("WeldConstraint") or v:IsA("Humanoid") or v:IsA("Script") or v:IsA("LocalScript") or v:IsA("Animator") or v:IsA("Decal") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("SurfaceAppearance") then v:Destroy()
-		elseif v:IsA("SpecialMesh") then v.TextureId=""
-		elseif v:IsA("MeshPart") then v.TextureID="" end
-	end
-	cl.Parent=workspace
-	return cl
-end
-
 local function start()
 	local ch=plr.Character
 	local hrp=ch and ch:FindFirstChild("HumanoidRootPart")
-	local hum=ch and ch:FindFirstChild("Humanoid")
+	local hum=ch and ch:FindFirstChildOfClass("Humanoid")
 	if not hrp or not hum or rep then return end
-	act=true
-	pts={}
-	table.insert(pts,hrp.CFrame)
+	act=true pts={hrp.CFrame}
 	for _,d in ipairs(imgs) do if d.m then d.m:Destroy() end end
 	table.clear(imgs)
 	if ghost then ghost:Destroy() ghost=nil end
-
-	tBtn.Text="САНДЕВИСТАН: ВКЛ"
-	tBtn.BackgroundColor3=Color3.fromRGB(0,80,60)
-	atm(true)
-	hrp.Anchored=true
-
 	ghost=mkGhost(ch)
+	local gHum=ghost and ghost:FindFirstChildOfClass("Humanoid")
 	local gHrp=ghost and ghost:FindFirstChild("HumanoidRootPart")
-	local gHum=ghost and ghost:FindFirstChild("Humanoid")
-	if gHrp and gHum then
-		gHrp.CFrame=hrp.CFrame
-		cam.CameraSubject=gHum
-		mConn=R.Heartbeat:Connect(function()
-			if not act or not gHrp.Parent then return end
-			local dir=hum.MoveDirection
-			gHum.WalkSpeed=hum.WalkSpeed*mult
-			gHum:Move(dir,false)
-			if dir.Magnitude>0.05 then
-				local flatDir=Vector3.new(dir.X,0,dir.Z).Unit
-				gHrp.CFrame=CFrame.lookAt(gHrp.Position,gHrp.Position+flatDir)
-			else
-				-- Убираем скольжение фантома при остановке
-				local vel=gHrp.AssemblyLinearVelocity
-				gHrp.AssemblyLinearVelocity=Vector3.new(0,vel.Y,0)
-			end
-			if hum.Jump then gHum.Jump=true end
-			local last=pts[#pts]
-			if not last or (gHrp.Position-last.Position).Magnitude>0.2 then table.insert(pts,gHrp.CFrame) end
-		end)
-		tThr=task.spawn(function()
-			while act and ghost and ghost.Parent do
-				local col=COLS[cIdx] cIdx=(cIdx%#COLS)+1
-				local s=mkSil(ghost,col,0.45)
-				if s then table.insert(imgs,{m=s,i=math.max(1,#pts),ok=false}) end
-				task.wait(inv)
-			end
-		end)
-	end
-end
-
-local function stop()
-	if not act then return end
-	act,rep=false,true
-	tBtn.Text="РЫВОК..."
-	tBtn.BackgroundColor3=Color3.fromRGB(160,110,0)
-	if mConn then mConn:Disconnect() mConn=nil end
-	if tThr then task.cancel(tThr) tThr=nil end
-	if ghost then ghost:Destroy() ghost=nil end
-
-	local ch=plr.Character
-	local hrp=ch and ch:FindFirstChild("HumanoidRootPart")
-	local hum=ch and ch:FindFirstChild("Humanoid")
-	if hum then cam.CameraSubject=hum end
-
-	local total=#pts
-	if hrp and total>1 then
-		local step=math.max(1,math.floor(dashSpd))
-		for idx=1,total,step do
-			if not hrp or not hrp.Parent then break end
-			hrp.CFrame=pts[idx]
-			for _,d in ipairs(imgs) do
-				if not d.ok and d.i<=idx then
-					d.ok=true
-					fade(d.m)
+	if not ghost or not gHum or not gHrp then act=false return end
+	cam.CameraSubject=gHum tBtn.Text="САНДЕВИСТАН: ВКЛ" tBtn.BackgroundColor3=Color3.fromRGB(0,110,80) tBtn.TextColor3=Color3.new(1,1,1) atm(true)
+	if mConn then mConn:Disconnect() end
+	mConn=R.RenderStepped:Connect(function()
+		if not act or not ghost or not gHum or not gHrp or not hum then return end
+		local gd=hum.MoveDirection
+		if gd.Magnitude>0.05 then
+			local ud=Vector3.new(gd.X,0,gd.Z)
+			if ud.Magnitude>0.01 then ud=ud.Unit gHum.WalkSpeed=16*mult gHum:Move(ud,false) gHrp.CFrame=CFrame.lookAt(gHrp.Position,gHrp.Position+ud) end
+		else gHum:Move(Vector3.zero,false) end
+		if hum.Jump then gHum.Jump=true end
+		if math.abs(jX)>0.05 or math.abs(jY)>0.05 then
+			local lk,rt=Vector3.new(cam.CFrame.LookVector.X,0,cam.CFrame.LookVector.Z),Vector3.new(cam.CFrame.RightVector.X,0,cam.CFrame.RightVector.Z)
+			lk=(lk.Magnitude>0.01) and lk.Unit or Vector3.new(0,0,-1) rt=(rt.Magnitude>0.01) and rt.Unit or Vector3.new(1,0,0)
+			local rd=(rt*jX-lk*jY)
+			if rd.Magnitude>0.01 then hum:Move(rd.Unit,false) end
+		else hum:Move(Vector3.zero,false) end
+	end)
+	if tThr then task.cancel(tThr) end
+	tThr=task.spawn(function()
+		while act and ghost and gHrp do
+			local cf,last=gHrp.CFrame,pts[#pts]
+			if not last or (cf.Position-last.Position).Magnitude>0.8 then
+				table.insert(pts,cf)
+				local cfs={} ghost.Archivable=true
+				for _,v in ipairs(ghost:GetDescendants()) do v.Archivable=true if v:IsA("BasePart") then cfs[v.Name..tostring(v.Size)]=v.CFrame end end
+				local sil=ghost:Clone() ghost.Archivable=false
+				if sil then
+					for _,v in ipairs(sil:GetDescendants()) do
+						if v:IsA("BasePart") then
+							if v.Name=="HumanoidRootPart" or v.Transparency>=0.95 then v:Destroy()
+							else local c=cfs[v.Name..tostring(v.Size)] v.Anchored,v.CanCollide,v.CanTouch,v.CanQuery,v.Massless,v.CastShadow=true,false,false,false,true,false v.Material,v.Color,v.Transparency=Enum.Material.Neon,COLS[cIdx],0.45 if c then v.CFrame=c end end
+						elseif v:IsA("JointInstance") or v:IsA("WeldConstraint") or v:IsA("Humanoid") or v:IsA("Script") or v:IsA("LocalScript") or v:IsA("Animator") or v:IsA("Decal") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("SurfaceAppearance") then v:Destroy()
+						elseif v:IsA("SpecialMesh") then v.TextureId="" elseif v:IsA("MeshPart") then v.TextureID="" end
+					end
+					sil.Parent=workspace
+					cIdx=(cIdx%#COLS)+1
+					table.insert(imgs,{m=sil,pos=cf.Position,gone=false})
 				end
 			end
-			R.Heartbeat:Wait()
+			task.wait(inv)
 		end
-		if hrp and hrp.Parent then
-			hrp.CFrame=pts[total]
-		end
-	end
-
-	for _,d in ipairs(imgs) do
-		if not d.ok then fade(d.m) end
-	end
-	table.clear(imgs)
-	table.clear(pts)
-
-	if hrp and hrp.Parent then
-		hrp.Anchored=false
-		hrp.AssemblyLinearVelocity=Vector3.zero
-	end
-
-	atm(false)
-	tBtn.Text="САНДЕВИСТАН: ВЫКЛ"
-	tBtn.BackgroundColor3=Color3.fromRGB(15,20,25)
-	rep=false
+	end)
 end
-
-tBtn.MouseButton1Click:Connect(function()
-	if act then stop() else start() end
-end)
-
-plr.CharacterAdded:Connect(function()
+local function stop()
+	if not act or rep then return end
+	act,rep=false,true
+	if mConn then mConn:Disconnect() mConn=nil end
+	if tThr then task.cancel(tThr) tThr=nil end
+	tBtn.Text="РЫВОК..." tBtn.BackgroundColor3=Color3.fromRGB(0,95,130)
+	local ch=plr.Character
+	local hrp=ch and ch:FindFirstChild("HumanoidRootPart")
+	local hum=ch and ch:FindFirstChildOfClass("Humanoid")
+	if ghost then local gHrp=ghost:FindFirstChild("HumanoidRootPart") if gHrp then table.insert(pts,gHrp.CFrame) end ghost:Destroy() ghost=nil end
+	if hum then cam.CameraSubject=hum end
+	if hrp and hum and #pts>1 then
+		hrp.Anchored=true local speed=16*dashSpd
+		for i=2,#pts do
+			if not hrp or not hrp.Parent then break end
+			local tCF,sCF=pts[i],hrp.CFrame
+			local dist=(tCF.Position-sCF.Position).Magnitude
+			if dist>0.05 then
+				local dur,el=dist/speed,0
+				while el<dur and hrp and hrp.Parent do
+					el+=R.RenderStepped:Wait()
+					hrp.CFrame=sCF:Lerp(tCF,math.clamp(el/dur,0,1))
+					hrp.AssemblyLinearVelocity,hrp.AssemblyAngularVelocity=Vector3.zero,Vector3.zero
+					local cp=hrp.Position
+					for _,d in ipairs(imgs) do if not d.gone and (cp-d.pos).Magnitude<3.5 then d.gone=true fade(d.m) end end
+				end
+				if hrp and hrp.Parent then hrp.CFrame=tCF end
+			end
+		end
+	end
+	if hrp and hrp.Parent then hrp.AssemblyLinearVelocity=Vector3.zero hrp.Anchored=false end
+	for _,d in ipairs(imgs) do if not d.gone then d.gone=true fade(d.m) end end
+	table.clear(imgs) table.clear(pts) atm(false)
+	tBtn.Text="САНДЕВИСТАН: ВЫКЛ" tBtn.BackgroundColor3=Color3.fromRGB(15,20,25) tBtn.TextColor3=Color3.fromRGB(0,255,170) rep=false
+end
+tBtn.MouseButton1Click:Connect(function() if not rep then if act then stop() else start() end end end)
+U.InputBegan:Connect(function(i,gp) if not gp and i.KeyCode==Enum.KeyCode.E and not rep then if act then stop() else start() end end end)
+plr.CharacterRemoving:Connect(function()
 	act,rep=false,false
 	if mConn then mConn:Disconnect() mConn=nil end
 	if tThr then task.cancel(tThr) tThr=nil end
 	if ghost then ghost:Destroy() ghost=nil end
 	for _,d in ipairs(imgs) do if d.m then d.m:Destroy() end end
-	table.clear(imgs)
-	table.clear(pts)
-	atm(false)
-	tBtn.Text="САНДЕВИСТАН: ВЫКЛ"
-	tBtn.BackgroundColor3=Color3.fromRGB(15,20,25)
+	table.clear(imgs) table.clear(pts) atm(false)
+	tBtn.Text="САНДЕВИСТАН: ВЫКЛ" tBtn.BackgroundColor3=Color3.fromRGB(15,20,25) tBtn.TextColor3=Color3.fromRGB(0,255,170)
 end)
